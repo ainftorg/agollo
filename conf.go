@@ -17,6 +17,7 @@ type Conf struct {
 	Retry              int      `json:"retry,omitempty"`        // retry count. 0 means no retry
 	SyncTimeout        int64    `json:"sync_timeout,omitempty"` // sync request timeout, unit:ms
 	PollTimeout        int64    `json:"poll_timeout,omitempty"` // poll request timeout, unit:ms
+	PrivateKey         string   `json:private_key,omitempty`
 }
 
 // NewConf create Conf from file

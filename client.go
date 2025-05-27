@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/philchia/agollo/v4/internal/properties"
+	"github.com/apenft-org/agollo/v4/internal/properties"
 )
 
 type Client interface {
@@ -90,7 +90,7 @@ func NewClient(conf *Conf, opts ...ClientOption) Client {
 
 	agolloClient := &client{
 		conf:           conf,
-		logger:         newLogger(),
+		logger:         NewLogger(),
 		caches:         newNamespaceCache(),
 		releaseKeyRepo: newCache(),
 	}

@@ -10,7 +10,7 @@ type Logger interface {
 	Errorf(format string, args ...interface{})
 }
 
-func newLogger() Logger {
+func NewLogger() Logger {
 	return &logger{
 		log: log.New(os.Stdout, "[agollo] ", log.LstdFlags),
 	}

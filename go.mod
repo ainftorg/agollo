@@ -1,3 +1,3 @@
-module github.com/philchia/agollo/v4
+module github.com/apenft-org/agollo/v4
 
 go 1.14

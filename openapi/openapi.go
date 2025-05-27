@@ -2,11 +2,17 @@ package openapi
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -49,6 +55,9 @@ type api struct {
 }
 
 func (a *api) request(method string, url string, body io.Reader) ([]byte, error) {
+	//logger := agollo.NewLogger()
+	//logger.Infof("openapi requst %s", url)
+
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
@@ -69,16 +78,76 @@ func (a *api) request(method string, url string, body io.Reader) ([]byte, error)
 		return nil, err
 	}
 
-	if resp.StatusCode != 200 {
-		var e Error
-		if err := json.Unmarshal(bts, &e); err != nil {
+	// 循环打印 Header
+	//for key, values := range resp.Header {
+	//	logger.Infof("openapi Header: %s: %s", key, strings.Join(values, ", "))
+	//}
+
+	// if encrypted, decrypt
+	if resp.Header.Get("APOLLO_SECRET_KEY") == "true" || resp.Header.Get("HTX_CRYPTO_ENABLE") == "true" || resp.Header.Get("HEADER_ENCRYPT_FLAG") == "true" {
+		//logger.Infof("openapi CRYPTO ENABLED")
+
+		SecretKeyA := os.Getenv("APOLLO_SECRET_KEY")
+		SecretKeyB := os.Getenv("ApolloPrivateKey")
+
+		SecretKey := ""
+		// Check which secret key is not empty
+		if SecretKeyA != "" {
+			SecretKey = SecretKeyA
+		} else if SecretKeyB != "" {
+			SecretKey = SecretKeyB
+		} else {
+			return nil, errors.New("secretKey are Empty")
+		}
+
+		raw, err := base64.RawStdEncoding.DecodeString(SecretKey)
+		if err != nil {
 			return nil, err
 		}
 
-		return nil, e
-	}
+		sk, err := x509.ParsePKCS8PrivateKey(raw)
+		if err != nil {
+			return nil, err
+		}
 
-	return bts, nil
+		privKey := sk.(*rsa.PrivateKey)
+		partLen := privKey.PublicKey.N.BitLen() / 8
+		chunks := split(bts, partLen)
+		buffer := bytes.NewBufferString("")
+		for _, chunk := range chunks {
+			decrypted, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, chunk)
+			if err != nil {
+				return nil, err
+			}
+			buffer.Write(decrypted)
+
+		}
+		//logger.Infof("openapi Decode %s", string(buffer.Bytes()))
+		return buffer.Bytes(), nil
+	} else {
+		if resp.StatusCode != 200 {
+			var e Error
+			if err := json.Unmarshal(bts, &e); err != nil {
+				return nil, err
+			}
+
+			return nil, e
+		}
+		return bts, nil
+	}
+}
+
+func split(buf []byte, lim int) [][]byte {
+	var chunk []byte
+	chunks := make([][]byte, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
 }
 
 // Envs get all env info
