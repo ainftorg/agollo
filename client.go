@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apenft-org/agollo/v4/internal/properties"
+	"github.com/ainftorg/agollo/internal/properties"
 )
 
 type Client interface {
